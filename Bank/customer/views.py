@@ -23,7 +23,7 @@ class Refresh(APIView):
     def post(self, request):
         data = request.data
         refresh = refresh_jwt_token(data["refresh_token"])
-        Token.objects.create(customer_id=refresh["customer_id"], access_token=refresh["access_token"], refresh_token=refresh["refresh_token"])
+        Token.objects.filter(customer_id=refresh["customer_id"]).update(access_token=refresh["access_token"], refresh_token=refresh["refresh_token"])
         return Response({"status" : True, "message" : "refresh success", "data" : refresh}, status=status.HTTP_200_OK)
     
 class logout(APIView):
@@ -74,11 +74,11 @@ class BankList(APIView):
         return Response({"status" : True, "message" : "get success","data" : banks_list}, status=status.HTTP_200_OK)
     
 class AccountList(APIView):
-    def get(self, request, customer_id):
-        # payload = verify_jwt_token(request)
-        # if payload["status"] == False:
-        #     return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
-        # customer_id = payload["customer_id"]
+    def get(self, request):
+        payload = verify_jwt_token(request)
+        if payload["status"] == False:
+            return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
+        customer_id = payload["customer_id"]
         account_list = []
         accounts = Account.objects.filter(customer=customer_id)
         for account in accounts:
@@ -104,36 +104,32 @@ class AccountList(APIView):
 class AccountCreate(APIView):
     def post(self, request):
         data = request.data
-        # payload = verify_jwt_token(request)
-        # if payload["status"] == False:
-        #     return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
-        # customer_id = payload["customer_id"]
-        if "customer_id" not in data:
-            return Response({"status" : False, "message": 'Customer ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        payload = verify_jwt_token(request)
+        if payload["status"] == False:
+            return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
+        customer_id = payload["customer_id"]
         if "initial_balance" not in data:
             return Response({"status" : False, "message": 'Initial Balance is required'}, status=status.HTTP_400_BAD_REQUEST)
         if "bank_number" not in data:
             return Response({"status" : False, "message": 'Bank Number is required'}, status=status.HTTP_400_BAD_REQUEST)
-        customer = Customer.objects.get(id=data["customer_id"])
+        customer = Customer.objects.get(id=customer_id)
         bank = Bank.objects.get(id=data["bank_id"])
         account = Account.objects.create(customer=customer, balance=data["initial_balance"], bank=bank, bank_number=data["bank_number"])
         return Response({"status" : True, "message" : "create success", "data" : {'account_id': account.id, 'customer_id': customer.id, 'initial_balance': data["initial_balance"]}}, status=status.HTTP_200_OK)
 
 class AccountBalance(APIView):
     def get(self, request, account_id):
-        # payload = verify_jwt_token(request)
-        # if payload["status"] == False:
-        #     return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
-        # customer_id = payload["customer_id"]
+        payload = verify_jwt_token(request)
+        if payload["status"] == False:
+            return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
         account = Account.objects.get(id=account_id)
         return Response({"status" : True, "message" : "get success","data" : {'account_id': account.id, 'balance': str(account.balance), 'bank' : { 'name' : account.bank.name, 'code' : account.bank.code }, 'bank_number' : account.bank_number}}, status=status.HTTP_200_OK)
 
 class AccountTransferHistory(APIView):
     def get(self, request, account_id):
-        # payload = verify_jwt_token(request)
-        # if payload["status"] == False:
-        #     return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
-        # customer_id = payload["customer_id"]
+        payload = verify_jwt_token(request)
+        if payload["status"] == False:
+            return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
         account = Account.objects.get(id=account_id)
         transfers_sent = Transfer.objects.filter(from_account=account)
         transfers_received = Transfer.objects.filter(to_account=account)
@@ -146,10 +142,9 @@ class AccountTransferHistory(APIView):
 class AccountTransfer(APIView):
     def post(self, request):
         data = request.data
-        # payload = verify_jwt_token(request)
-        # if payload["status"] == False:
-        #     return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
-        # customer_id = payload["customer_id"]
+        payload = verify_jwt_token(request)
+        if payload["status"] == False:
+            return Response({"status" : False,"message": "Token is invalid"}, status=status.HTTP_401_UNAUTHORIZED)
         from_account_id = request.data.get('from_account_id')
         to_account_id = request.data.get('to_account_id')
         amount = request.data.get('amount')
